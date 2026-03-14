@@ -1,0 +1,10 @@
+# Video input/output directories
+input/*
+output/*
+
+# Keep the directories themselves
+!input/.gitkeep
+!output/.gitkeep
+
+# Model weights
+models/

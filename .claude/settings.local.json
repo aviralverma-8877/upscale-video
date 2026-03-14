@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"d:/python project\"/*.mp4)",
+      "Bash(pip list:*)",
+      "Bash(nvidia-smi --query-gpu=name --format=csv,noheader)",
+      "Bash(ffmpeg -version)",
+      "Bash(ffprobe -v quiet -print_format json -show_streams \"d:/python project/C0014.MP4\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); s=[x for x in d[''''streams''''] if x[''''codec_type'''']==''''video''''][0]; print\\(f\"\"Resolution: {s[''''width'''']}x{s[''''height'''']}, Codec: {s[''''codec_name'''']}, Duration: {s.get\\(''''duration'''',''''N/A''''\\)}s\"\"\\)\")",
+      "Bash(pip show:*)",
+      "Bash(pip install:*)",
+      "Bash(python upscale_video.py)",
+      "Bash(python -c \"import torchvision.transforms.functional_tensor\")",
+      "Bash(python -c \"from torchvision.transforms.functional import rgb_to_grayscale; print\\(''ok''\\)\")",
+      "Bash(python -c \"import basicsr.data.degradations; print\\(basicsr.data.degradations.__file__\\)\")",
+      "Bash(python -c \":*)",
+      "Bash(timeout 15 python app.py)",
+      "Bash(python app.py)"
+    ]
+  }
+}

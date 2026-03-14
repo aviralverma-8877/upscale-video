@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video AI Upscaler</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #00d2ff, #7b2ff7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.95rem;
+        }
+
+        /* Upload Card */
+        .card {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 24px;
+            border: 1px solid #2a2a4a;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+
+        .upload-area {
+            border: 2px dashed #3a3a6a;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+        }
+
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #7b2ff7;
+            background: rgba(123, 47, 247, 0.05);
+        }
+
+        .upload-area input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 1rem;
+            color: #aaa;
+        }
+
+        .upload-text strong {
+            color: #7b2ff7;
+        }
+
+        .file-name {
+            margin-top: 10px;
+            font-size: 0.9rem;
+            color: #00d2ff;
+            word-break: break-all;
+        }
+
+        /* Options row */
+        .options-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .scale-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .scale-btn {
+            padding: 10px 24px;
+            border: 2px solid #3a3a6a;
+            border-radius: 10px;
+            background: transparent;
+            color: #ccc;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .scale-btn:hover { border-color: #7b2ff7; color: #fff; }
+
+        .scale-btn.active {
+            border-color: #7b2ff7;
+            background: rgba(123, 47, 247, 0.2);
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 12px 32px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #7b2ff7, #00d2ff);
+            color: #fff;
+            margin-left: auto;
+        }
+
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: #fff;
+        }
+
+        .btn-danger:hover { background: #c0392b; }
+
+        /* Progress Section */
+        .progress-section {
+            display: none;
+        }
+
+        .progress-section.visible {
+            display: block;
+        }
+
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+
+        .progress-bar-wrapper {
+            background: #2a2a4a;
+            border-radius: 12px;
+            height: 28px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-bar {
+            height: 100%;
+            border-radius: 12px;
+            background: linear-gradient(90deg, #7b2ff7, #00d2ff);
+            transition: width 0.4s ease;
+            min-width: 0%;
+        }
+
+        .progress-bar-text {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #fff;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 24px;
+            margin-top: 16px;
+            flex-wrap: wrap;
+        }
+
+        .stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-processing { background: rgba(123,47,247,0.2); color: #b388ff; }
+        .status-done { background: rgba(0,210,100,0.2); color: #69f0ae; }
+        .status-aborted { background: rgba(231,76,60,0.2); color: #ff8a80; }
+        .status-error { background: rgba(231,76,60,0.2); color: #ff8a80; }
+        .status-skipped { background: rgba(255,193,7,0.2); color: #ffd740; }
+
+        /* Video Players */
+        .players-section {
+            display: none;
+        }
+
+        .players-section.visible {
+            display: block;
+        }
+
+        .players-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .players-grid { grid-template-columns: 1fr; }
+        }
+
+        .player-card {
+            background: #12122a;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #2a2a4a;
+        }
+
+        .player-label {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #2a2a4a;
+        }
+
+        .player-label.input-label { color: #ffd740; }
+        .player-label.output-label { color: #69f0ae; }
+
+        .player-card video {
+            width: 100%;
+            display: block;
+            background: #000;
+        }
+
+        .no-video {
+            padding: 60px 20px;
+            text-align: center;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-error { background: #e74c3c; color: #fff; }
+        .toast-success { background: #27ae60; color: #fff; }
+        .toast-info { background: #2980b9; color: #fff; }
+
+        /* Input Files List */
+        .files-section { display: none; }
+        .files-section.visible { display: block; }
+        .file-list { display: flex; flex-direction: column; gap: 10px; }
+        .file-item {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 18px; background: #12122a; border-radius: 10px;
+            border: 1px solid #2a2a4a; transition: border-color 0.2s;
+        }
+        .file-item:hover { border-color: #7b2ff7; }
+        .file-item-info { display: flex; flex-direction: column; gap: 2px; }
+        .file-item-name { font-weight: 600; color: #e0e0e0; font-size: 0.95rem; }
+        .file-item-status { font-size: 0.8rem; color: #888; }
+        .file-item-status.has-output { color: #69f0ae; }
+        .file-item-actions { display: flex; gap: 8px; }
+        .btn-sm {
+            padding: 7px 16px; border: none; border-radius: 8px;
+            font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-sm-primary { background: linear-gradient(135deg, #7b2ff7, #00d2ff); color: #fff; }
+        .btn-sm-primary:hover { opacity: 0.9; }
+        .btn-sm-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+        .btn-sm-secondary { background: #2a2a4a; color: #ccc; }
+        .btn-sm-secondary:hover { background: #3a3a6a; }
+        .no-files { padding: 30px; text-align: center; color: #555; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video AI Upscaler</h1>
+        <p class="subtitle">Real-ESRGAN + NVIDIA GPU | Upload, upscale, and preview</p>
+
+        <!-- Upload Card -->
+        <div class="card">
+            <div class="card-title">Upload Video</div>
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" accept="video/*">
+                <div class="upload-icon">&#128253;</div>
+                <div class="upload-text">Drag & drop a video or <strong>click to browse</strong></div>
+                <div class="file-name" id="fileName"></div>
+            </div>
+            <div class="options-row">
+                <div class="scale-group">
+                    <button class="scale-btn active" data-scale="2" onclick="selectScale(2)">4K (2x)</button>
+                    <button class="scale-btn" data-scale="4" onclick="selectScale(4)">8K (4x)</button>
+                </div>
+                <button class="btn btn-primary" id="uploadBtn" onclick="startUpload()" disabled>
+                    Start Upscaling
+                </button>
+            </div>
+        </div>
+
+        <!-- Input Files Card -->
+        <div class="card files-section" id="filesSection">
+            <div class="card-title">Input Files</div>
+            <div class="file-list" id="fileList">
+                <div class="no-files">No files uploaded yet</div>
+            </div>
+        </div>
+
+        <!-- Progress Card -->
+        <div class="card progress-section" id="progressSection">
+            <div class="progress-header">
+                <div class="card-title" style="margin-bottom:0">
+                    Processing: <span id="procFilename"></span>
+                </div>
+                <div style="display:flex;gap:12px;align-items:center">
+                    <span class="status-badge status-processing" id="statusBadge">Processing</span>
+                    <button class="btn btn-danger" id="abortBtn" onclick="abortJob()">Abort</button>
+                </div>
+            </div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="progressBar" style="width:0%"></div>
+                <div class="progress-bar-text" id="progressText">0.0%</div>
+            </div>
+            <div class="stats-row">
+                <div class="stat">
+                    <span class="stat-label">Frame</span>
+                    <span class="stat-value" id="statFrame">0 / 0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Speed</span>
+                    <span class="stat-value" id="statSpeed">-</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">ETA</span>
+                    <span class="stat-value" id="statEta">--:--:--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Video Players -->
+        <div class="card players-section" id="playersSection">
+            <div class="card-title">Video Preview</div>
+            <div class="players-grid">
+                <div class="player-card">
+                    <div class="player-label input-label">Original (Input)</div>
+                    <div id="inputPlayerWrap">
+                        <div class="no-video">No video loaded</div>
+                    </div>
+                </div>
+                <div class="player-card">
+                    <div class="player-label output-label">Upscaled (Output)</div>
+                    <div id="outputPlayerWrap">
+                        <div class="no-video">Not yet available</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        let selectedScale = 2;
+        let selectedFile = null;
+        let eventSource = null;
+        let currentInputFile = "";
+        let currentOutputFile = "";
+
+        // --- Scale toggle ---
+        function selectScale(s) {
+            selectedScale = s;
+            document.querySelectorAll(".scale-btn").forEach(b => {
+                b.classList.toggle("active", parseInt(b.dataset.scale) === s);
+            });
+        }
+
+        // --- File selection ---
+        const fileInput = document.getElementById("fileInput");
+        const uploadArea = document.getElementById("uploadArea");
+        const fileNameEl = document.getElementById("fileName");
+        const uploadBtn = document.getElementById("uploadBtn");
+
+        fileInput.addEventListener("change", () => {
+            if (fileInput.files.length > 0) {
+                selectedFile = fileInput.files[0];
+                fileNameEl.textContent = selectedFile.name +
+                    " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+                uploadBtn.disabled = false;
+            }
+        });
+
+        uploadArea.addEventListener("dragover", e => {
+            e.preventDefault();
+            uploadArea.classList.add("dragover");
+        });
+        uploadArea.addEventListener("dragleave", () => uploadArea.classList.remove("dragover"));
+        uploadArea.addEventListener("drop", e => {
+            e.preventDefault();
+            uploadArea.classList.remove("dragover");
+            if (e.dataTransfer.files.length > 0) {
+                selectedFile = e.dataTransfer.files[0];
+                fileInput.files = e.dataTransfer.files;
+                fileNameEl.textContent = selectedFile.name +
+                    " (" + (selectedFile.size / (1024*1024)).toFixed(1) + " MB)";
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // --- Upload ---
+        async function startUpload() {
+            if (!selectedFile) return;
+            uploadBtn.disabled = true;
+
+            const form = new FormData();
+            form.append("video", selectedFile);
+            form.append("scale", selectedScale);
+
+            try {
+                const res = await fetch("/upload", { method: "POST", body: form });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error, "error");
+                    uploadBtn.disabled = false;
+                    return;
+                }
+
+                currentInputFile = data.input_file;
+                currentOutputFile = data.output_file;
+
+                if (data.status === "skipped") {
+                    showToast("Output already exists - skipped!", "info");
+                    showPlayers(currentInputFile, currentOutputFile);
+                    showProgressSkipped(currentInputFile);
+                    uploadBtn.disabled = false;
+                    return;
+                }
+
+                showToast("Upload complete. Processing started!", "success");
+                showProgressSection(currentInputFile);
+                showInputPlayer(currentInputFile);
+                connectSSE();
+                loadFileList();
+
+            } catch (e) {
+                showToast("Upload failed: " + e.message, "error");
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // --- SSE for live progress ---
+        function connectSSE() {
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource("/progress");
+            eventSource.onmessage = (e) => {
+                const d = JSON.parse(e.data);
+                updateProgress(d);
+            };
+            eventSource.onerror = () => {
+                // reconnect after a short delay
+                setTimeout(() => {
+                    if (eventSource) eventSource.close();
+                    eventSource = null;
+                }, 2000);
+            };
+        }
+
+        function updateProgress(d) {
+            const bar = document.getElementById("progressBar");
+            const text = document.getElementById("progressText");
+            const badge = document.getElementById("statusBadge");
+            const abortBtn = document.getElementById("abortBtn");
+
+            bar.style.width = d.progress + "%";
+            text.textContent = d.progress + "%";
+            document.getElementById("statFrame").textContent =
+                d.frame + " / " + d.total_frames;
+            document.getElementById("statSpeed").textContent =
+                d.fps_speed > 0 ? d.fps_speed + " s/frame" : "-";
+            document.getElementById("statEta").textContent = d.eta || "--:--:--";
+
+            // Status badge
+            badge.className = "status-badge status-" + d.status;
+            badge.textContent = d.status.charAt(0).toUpperCase() + d.status.slice(1);
+
+            if (d.status === "done") {
+                abortBtn.style.display = "none";
+                uploadBtn.disabled = false;
+                if (eventSource) { eventSource.close(); eventSource = null; }
+                showPlayers(currentInputFile, currentOutputFile);
+                showToast("Upscaling complete!", "success");
+                loadFileList();
+            } else if (d.status === "aborted") {
+                abortBtn.style.display = "none";
+                uploadBtn.disabled = false;
+                if (eventSource) { eventSource.close(); eventSource = null; }
+                showToast("Processing aborted.", "info");
+                loadFileList();
+            } else if (d.status === "error") {
+                abortBtn.style.display = "none";
+                uploadBtn.disabled = false;
+                if (eventSource) { eventSource.close(); eventSource = null; }
+                showToast("Error: " + d.eta, "error");
+                loadFileList();
+            }
+        }
+
+        // --- Abort ---
+        async function abortJob() {
+            try {
+                const res = await fetch("/abort", { method: "POST" });
+                const data = await res.json();
+                if (res.ok) showToast("Aborting...", "info");
+                else showToast(data.error, "error");
+            } catch (e) {
+                showToast("Abort failed: " + e.message, "error");
+            }
+        }
+
+        // --- UI helpers ---
+        function showProgressSection(filename) {
+            const sec = document.getElementById("progressSection");
+            sec.classList.add("visible");
+            document.getElementById("procFilename").textContent = filename;
+            document.getElementById("abortBtn").style.display = "inline-block";
+            document.getElementById("progressBar").style.width = "0%";
+            document.getElementById("progressText").textContent = "0.0%";
+            document.getElementById("statFrame").textContent = "0 / 0";
+            document.getElementById("statSpeed").textContent = "-";
+            document.getElementById("statEta").textContent = "--:--:--";
+            const badge = document.getElementById("statusBadge");
+            badge.className = "status-badge status-processing";
+            badge.textContent = "Processing";
+        }
+
+        function showProgressSkipped(filename) {
+            const sec = document.getElementById("progressSection");
+            sec.classList.add("visible");
+            document.getElementById("procFilename").textContent = filename;
+            document.getElementById("abortBtn").style.display = "none";
+            document.getElementById("progressBar").style.width = "100%";
+            document.getElementById("progressText").textContent = "100%";
+            const badge = document.getElementById("statusBadge");
+            badge.className = "status-badge status-skipped";
+            badge.textContent = "Skipped";
+        }
+
+        function showInputPlayer(filename) {
+            const sec = document.getElementById("playersSection");
+            sec.classList.add("visible");
+            document.getElementById("inputPlayerWrap").innerHTML =
+                '<video controls preload="metadata" src="/videos/input/' +
+                encodeURIComponent(filename) + '"></video>';
+            document.getElementById("outputPlayerWrap").innerHTML =
+                '<div class="no-video">Processing... will appear when done</div>';
+        }
+
+        function showPlayers(inputFile, outputFile) {
+            const sec = document.getElementById("playersSection");
+            sec.classList.add("visible");
+            document.getElementById("inputPlayerWrap").innerHTML =
+                '<video controls preload="metadata" src="/videos/input/' +
+                encodeURIComponent(inputFile) + '"></video>';
+            document.getElementById("outputPlayerWrap").innerHTML =
+                '<video controls preload="metadata" src="/videos/output/' +
+                encodeURIComponent(outputFile) + '"></video>';
+        }
+
+        function showToast(msg, type) {
+            const t = document.getElementById("toast");
+            t.textContent = msg;
+            t.className = "toast toast-" + type + " show";
+            setTimeout(() => t.classList.remove("show"), 4000);
+        }
+
+        // --- Input files list ---
+        async function loadFileList() {
+            try {
+                const res = await fetch("/list");
+                const data = await res.json();
+                const section = document.getElementById("filesSection");
+                const list = document.getElementById("fileList");
+
+                if (data.inputs.length === 0) {
+                    section.classList.remove("visible");
+                    return;
+                }
+
+                section.classList.add("visible");
+                const outputSet = new Set(data.outputs);
+                list.innerHTML = "";
+
+                for (const fname of data.inputs) {
+                    const base = fname.substring(0, fname.lastIndexOf("."));
+                    const ext = fname.substring(fname.lastIndexOf("."));
+                    const has4K = outputSet.has(base + "_4K" + ext);
+                    const has8K = outputSet.has(base + "_8K" + ext);
+
+                    const item = document.createElement("div");
+                    item.className = "file-item";
+
+                    let statusText = "";
+                    if (has4K && has8K) statusText = "4K + 8K ready";
+                    else if (has4K) statusText = "4K ready";
+                    else if (has8K) statusText = "8K ready";
+                    else statusText = "Not processed";
+
+                    const statusClass = (has4K || has8K) ? "file-item-status has-output" : "file-item-status";
+
+                    let btns = "";
+                    if (!has4K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + fname.replace(/'/g, "\\'") + '\', 2)">Upscale 4K</button>';
+                    if (!has8K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + fname.replace(/'/g, "\\'") + '\', 4)">Upscale 8K</button>';
+                    if (has4K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + fname.replace(/'/g, "\\'") + '\', \'' + (base + "_4K" + ext).replace(/'/g, "\\'") + '\')">View 4K</button>';
+                    if (has8K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + fname.replace(/'/g, "\\'") + '\', \'' + (base + "_8K" + ext).replace(/'/g, "\\'") + '\')">View 8K</button>';
+
+                    item.innerHTML =
+                        '<div class="file-item-info">' +
+                            '<span class="file-item-name">' + fname + '</span>' +
+                            '<span class="' + statusClass + '">' + statusText + '</span>' +
+                        '</div>' +
+                        '<div class="file-item-actions">' + btns + '</div>';
+
+                    list.appendChild(item);
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        async function processExisting(filename, scale) {
+            uploadBtn.disabled = true;
+            try {
+                const res = await fetch("/process", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ filename: filename, scale: scale }),
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error, "error");
+                    uploadBtn.disabled = false;
+                    return;
+                }
+
+                currentInputFile = data.input_file;
+                currentOutputFile = data.output_file;
+
+                if (data.status === "skipped") {
+                    showToast("Output already exists - skipped!", "info");
+                    showPlayers(currentInputFile, currentOutputFile);
+                    showProgressSkipped(currentInputFile);
+                    uploadBtn.disabled = false;
+                    loadFileList();
+                    return;
+                }
+
+                showToast("Processing started!", "success");
+                showProgressSection(currentInputFile);
+                showInputPlayer(currentInputFile);
+                connectSSE();
+            } catch (e) {
+                showToast("Failed: " + e.message, "error");
+                uploadBtn.disabled = false;
+            }
+        }
+
+        // --- Restore session on page load ---
+        async function restoreSession() {
+            try {
+                const res = await fetch("/status");
+                const d = await res.json();
+                if (d.status === "idle") return;
+
+                currentInputFile = d.filename;
+                currentOutputFile = d.output_file;
+
+                if (d.status === "processing") {
+                    showProgressSection(currentInputFile);
+                    showInputPlayer(currentInputFile);
+                    updateProgress(d);
+                    connectSSE();
+                    showToast("Reconnected to running job", "info");
+                } else if (d.status === "done") {
+                    showProgressSection(currentInputFile);
+                    updateProgress(d);
+                    document.getElementById("abortBtn").style.display = "none";
+                    showPlayers(currentInputFile, currentOutputFile);
+                } else if (d.status === "aborted" || d.status === "error") {
+                    showProgressSection(currentInputFile);
+                    updateProgress(d);
+                    document.getElementById("abortBtn").style.display = "none";
+                    if (currentInputFile) showInputPlayer(currentInputFile);
+                }
+            } catch (e) {
+                // Server not reachable, ignore
+            }
+        }
+
+        restoreSession();
+        loadFileList();
+    </script>
+</body>
+</html>
