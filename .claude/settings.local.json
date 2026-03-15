@@ -16,7 +16,8 @@
       "Bash(python -c \":*)",
       "Bash(timeout 15 python app.py)",
       "Bash(python app.py)",
-      "Bash(python -c \"import imageio_ffmpeg; print\\(imageio_ffmpeg.get_ffmpeg_exe\\(\\)\\)\")"
+      "Bash(python -c \"import imageio_ffmpeg; print\\(imageio_ffmpeg.get_ffmpeg_exe\\(\\)\\)\")",
+      "Bash(pip freeze:*)"
     ]
   }
 }

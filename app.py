@@ -451,5 +451,5 @@ if __name__ == "__main__":
     print(f"\n  Input folder:  {INPUT_DIR}")
     print(f"  Output folder: {OUTPUT_DIR}")
     print(f"  GPU: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'CPU only'}")
-    print(f"\n  Open http://localhost:5000 in your browser\n")
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    print(f"\n  Open http://localhost:7000 in your browser\n")
+    app.run(host="0.0.0.0", port=7000, debug=False, threaded=True)
