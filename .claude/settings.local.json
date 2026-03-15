@@ -15,7 +15,8 @@
       "Bash(python -c \"import basicsr.data.degradations; print\\(basicsr.data.degradations.__file__\\)\")",
       "Bash(python -c \":*)",
       "Bash(timeout 15 python app.py)",
-      "Bash(python app.py)"
+      "Bash(python app.py)",
+      "Bash(python -c \"import imageio_ffmpeg; print\\(imageio_ffmpeg.get_ffmpeg_exe\\(\\)\\)\")"
     ]
   }
 }

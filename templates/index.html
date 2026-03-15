@@ -336,6 +336,9 @@
         .btn-sm-primary:disabled { opacity: 0.4; cursor: not-allowed; }
         .btn-sm-secondary { background: #2a2a4a; color: #ccc; }
         .btn-sm-secondary:hover { background: #3a3a6a; }
+        .btn-sm-warn { background: #e67e22; color: #fff; }
+        .btn-sm-warn:hover { background: #d35400; }
+        .btn-sm-warn:disabled { opacity: 0.4; cursor: not-allowed; }
         .no-files { padding: 30px; text-align: center; color: #555; font-size: 0.9rem; }
     </style>
 </head>
@@ -655,13 +658,18 @@
 
                 section.classList.add("visible");
                 const outputSet = new Set(data.outputs);
+                const noAudioSet = new Set(data.outputs_no_audio || []);
                 list.innerHTML = "";
 
                 for (const fname of data.inputs) {
                     const base = fname.substring(0, fname.lastIndexOf("."));
                     const ext = fname.substring(fname.lastIndexOf("."));
-                    const has4K = outputSet.has(base + "_4K" + ext);
-                    const has8K = outputSet.has(base + "_8K" + ext);
+                    const name4K = base + "_4K" + ext;
+                    const name8K = base + "_8K" + ext;
+                    const has4K = outputSet.has(name4K);
+                    const has8K = outputSet.has(name8K);
+                    const noAudio4K = noAudioSet.has(name4K);
+                    const noAudio8K = noAudioSet.has(name8K);
 
                     const item = document.createElement("div");
                     item.className = "file-item";
@@ -671,14 +679,18 @@
                     else if (has4K) statusText = "4K ready";
                     else if (has8K) statusText = "8K ready";
                     else statusText = "Not processed";
+                    if ((has4K && noAudio4K) || (has8K && noAudio8K)) statusText += " (no audio)";
 
                     const statusClass = (has4K || has8K) ? "file-item-status has-output" : "file-item-status";
 
+                    const esc = (s) => s.replace(/'/g, "\\'");
                     let btns = "";
-                    if (!has4K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + fname.replace(/'/g, "\\'") + '\', 2)">Upscale 4K</button>';
-                    if (!has8K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + fname.replace(/'/g, "\\'") + '\', 4)">Upscale 8K</button>';
-                    if (has4K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + fname.replace(/'/g, "\\'") + '\', \'' + (base + "_4K" + ext).replace(/'/g, "\\'") + '\')">View 4K</button>';
-                    if (has8K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + fname.replace(/'/g, "\\'") + '\', \'' + (base + "_8K" + ext).replace(/'/g, "\\'") + '\')">View 8K</button>';
+                    if (!has4K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + esc(fname) + '\', 2)">Upscale 4K</button>';
+                    if (!has8K) btns += '<button class="btn-sm btn-sm-primary" onclick="processExisting(\'' + esc(fname) + '\', 4)">Upscale 8K</button>';
+                    if (has4K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + esc(fname) + '\', \'' + esc(name4K) + '\')">View 4K</button>';
+                    if (has8K) btns += '<button class="btn-sm btn-sm-secondary" onclick="showPlayers(\'' + esc(fname) + '\', \'' + esc(name8K) + '\')">View 8K</button>';
+                    if (has4K && noAudio4K) btns += '<button class="btn-sm btn-sm-warn" onclick="fixAudio(\'' + esc(fname) + '\', \'' + esc(name4K) + '\', this)">Fix Audio 4K</button>';
+                    if (has8K && noAudio8K) btns += '<button class="btn-sm btn-sm-warn" onclick="fixAudio(\'' + esc(fname) + '\', \'' + esc(name8K) + '\', this)">Fix Audio 8K</button>';
 
                     item.innerHTML =
                         '<div class="file-item-info">' +
@@ -729,6 +741,34 @@
             } catch (e) {
                 showToast("Failed: " + e.message, "error");
                 uploadBtn.disabled = false;
+            }
+        }
+
+        async function fixAudio(inputFile, outputFile, btn) {
+            btn.disabled = true;
+            btn.textContent = "Syncing...";
+            try {
+                const res = await fetch("/fix-audio", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ input_file: inputFile, output_file: outputFile }),
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    showToast(data.error, "error");
+                    btn.disabled = false;
+                    btn.textContent = "Fix Audio";
+                } else if (data.status === "skipped") {
+                    showToast(data.message, "info");
+                    loadFileList();
+                } else {
+                    showToast(data.message, "success");
+                    loadFileList();
+                }
+            } catch (e) {
+                showToast("Fix audio failed: " + e.message, "error");
+                btn.disabled = false;
+                btn.textContent = "Fix Audio";
             }
         }
 

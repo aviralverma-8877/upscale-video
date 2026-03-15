@@ -11,13 +11,17 @@ import json
 import time
 import threading
 import queue
+import subprocess
 import cv2
 import torch
+import imageio_ffmpeg
 from flask import (
     Flask, render_template, request, jsonify, Response, send_from_directory,
 )
 from basicsr.archs.rrdbnet_arch import RRDBNet
 from realesrgan import RealESRGANer
+
+FFMPEG_BIN = imageio_ffmpeg.get_ffmpeg_exe()
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -108,6 +112,49 @@ def create_upscaler(scale: int):
 
 
 # ---------------------------------------------------------------------------
+# Audio helpers
+# ---------------------------------------------------------------------------
+def has_audio_stream(filepath: str) -> bool:
+    """Check if a video file contains an audio stream."""
+    try:
+        result = subprocess.run(
+            [FFMPEG_BIN, "-i", filepath, "-hide_banner"],
+            capture_output=True, text=True, timeout=15,
+        )
+        return "Audio:" in result.stderr
+    except Exception:
+        return False
+
+
+def mux_audio(input_video: str, upscaled_video: str) -> bool:
+    """Copy audio from input_video into upscaled_video. Returns True on success."""
+    if not has_audio_stream(input_video):
+        return False  # nothing to mux
+
+    temp_path = upscaled_video + ".muxing.mp4"
+    try:
+        cmd = [
+            FFMPEG_BIN, "-y",
+            "-i", upscaled_video,   # upscaled video (no audio)
+            "-i", input_video,      # original (has audio)
+            "-c:v", "copy",         # keep upscaled video as-is
+            "-c:a", "aac",          # re-encode audio to aac for mp4 compat
+            "-map", "0:v:0",        # video from first input
+            "-map", "1:a:0",        # audio from second input
+            "-shortest",            # match shorter stream duration
+            temp_path,
+        ]
+        subprocess.run(cmd, capture_output=True, timeout=600, check=True)
+        # Replace original output with muxed version
+        os.replace(temp_path, upscaled_video)
+        return True
+    except Exception:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+        return False
+
+
+# ---------------------------------------------------------------------------
 # Background processing thread
 # ---------------------------------------------------------------------------
 def process_video(filename: str, scale: int):
@@ -192,6 +239,10 @@ def process_video(filename: str, scale: int):
             if os.path.exists(output_path):
                 os.remove(output_path)
         elif current_job["status"] == "processing":
+            # Mux audio from original into upscaled output
+            current_job["eta"] = "Syncing audio..."
+            broadcast_progress()
+            mux_audio(input_path, output_path)
             current_job["status"] = "done"
             current_job["progress"] = 100.0
 
@@ -311,12 +362,21 @@ def serve_output(filename):
 
 @app.route("/list")
 def list_files():
-    """List all input and output files."""
+    """List all input and output files with audio status."""
     inputs = sorted(f for f in os.listdir(INPUT_DIR)
                     if os.path.splitext(f)[1].lower() in ALLOWED_EXT)
     outputs = sorted(f for f in os.listdir(OUTPUT_DIR)
                      if os.path.splitext(f)[1].lower() in ALLOWED_EXT)
-    return jsonify({"inputs": inputs, "outputs": outputs})
+    # Check which outputs are missing audio
+    outputs_no_audio = []
+    for f in outputs:
+        if not has_audio_stream(os.path.join(OUTPUT_DIR, f)):
+            outputs_no_audio.append(f)
+    return jsonify({
+        "inputs": inputs,
+        "outputs": outputs,
+        "outputs_no_audio": outputs_no_audio,
+    })
 
 
 @app.route("/process", methods=["POST"])
@@ -357,6 +417,33 @@ def process_existing():
         "input_file": filename,
         "output_file": out_name,
     })
+
+
+@app.route("/fix-audio", methods=["POST"])
+def fix_audio():
+    """Mux audio from the original input into an existing upscaled output."""
+    data = request.get_json()
+    input_file = data.get("input_file", "")
+    output_file = data.get("output_file", "")
+
+    input_path = os.path.join(INPUT_DIR, input_file)
+    output_path = os.path.join(OUTPUT_DIR, output_file)
+
+    if not os.path.exists(input_path):
+        return jsonify({"error": f"Input not found: {input_file}"}), 404
+    if not os.path.exists(output_path):
+        return jsonify({"error": f"Output not found: {output_file}"}), 404
+
+    if not has_audio_stream(input_path):
+        return jsonify({"error": "Original video has no audio track."}), 400
+
+    if has_audio_stream(output_path):
+        return jsonify({"status": "skipped", "message": "Output already has audio."})
+
+    success = mux_audio(input_path, output_path)
+    if success:
+        return jsonify({"status": "done", "message": f"Audio synced to {output_file}"})
+    return jsonify({"error": "Audio mux failed."}), 500
 
 
 # ---------------------------------------------------------------------------
