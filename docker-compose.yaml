@@ -1,0 +1,23 @@
+services:
+  upscale-video:
+    build: .
+    container_name: upscale-video
+    ports:
+      - "7000:7000"
+    volumes:
+      # Persist videos and model weights outside the container
+      - ./input:/app/input
+      - ./output:/app/output
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    # GPU passthrough — requires nvidia-container-toolkit on the host
+    # Remove the 'deploy' block entirely to run CPU-only
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
