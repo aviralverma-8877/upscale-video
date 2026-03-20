@@ -18,7 +18,7 @@ RUN pip install --no-cache-dir \
         realesrgan==0.3.0 \
         "flask>=3.0.0" \
         "imageio-ffmpeg>=0.5.0" \
-        "numpy>=1.24.0" \
+        "numpy>=1.24.0,<2" \
         "pillow>=10.0.0"
 
 # Copy application source
